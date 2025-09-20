@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EdTech - Single File App</title>
+    <meta name="description" content="Single-file EdTech app with search, courses, details, dashboard, and community" />
+    <meta name="author" content="EdTech" />
+
+    <!-- Inline SVG Favicon 'ED' -->
+    <link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="%230ea5e9"/>
+            <stop offset="100%" stop-color="%232563eb"/>
+          </linearGradient>
+        </defs>
+        <rect x="2" y="2" width="60" height="60" rx="12" ry="12" fill="url(%23bg)"/>
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+          font-family="Inter, system-ui, Segoe UI, Arial" font-size="28" font-weight="800"
+          fill="%23ffffff" letter-spacing="1">ED</text>
+      </svg>' />
+
+    <!-- Minimal CSS (self-contained, no frameworks) -->
+    <style>
+      :root {
+        --bg: #0b0b0c;
+        --card: #121214;
+        --muted: #8b8b94;
+        --fg: #ffffff;
+        --accent1: #7c3aed; /* purple */
+        --accent2: #3b82f6; /* blue */
+        --success1: #16a34a;
+        --border: #27272a;
+        --radius: 12px;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+      a { color: inherit; text-decoration: none; }
+      button { font: inherit; cursor: pointer; }
+      input { font: inherit; }
+      .container { width: min(1100px, 92%); margin: 0 auto; }
+      .row { display: flex; gap: 16px; }
+      .space { height: 16px; }
+      .shadow { box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+      .btn { border: 1px solid var(--border); background: transparent; color: var(--fg); padding: 10px 14px; border-radius: 10px; }
+      .btn.primary { background: linear-gradient(135deg, var(--accent1), var(--accent2)); border: 0; }
+      .btn.block { width: 100%; }
+      .muted { color: var(--muted); }
+      .title { font-weight: 700; }
+      .grid { display: grid; gap: 16px; }
+      .grid.cols-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+      @media (max-width: 900px) { .grid.cols-3 { grid-template-columns: 1fr 1fr; } }
+      @media (max-width: 640px) { .grid.cols-3 { grid-template-columns: 1fr; } }
+
+      /* Header */
+      header { position: sticky; top: 0; z-index: 50; background: rgba(11,11,12,0.8); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+      .header-inner { height: 64px; display: flex; align-items: center; justify-content: space-between; }
+      .logo { font-size: 20px; font-weight: 800; background: linear-gradient(135deg, var(--accent1), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .search { position: relative; width: min(420px, 50vw); }
+      .search input { width: 100%; padding: 10px 12px 10px 36px; border-radius: 10px; border: 1px solid var(--border); background: #0f0f12; color: var(--fg); }
+      .search .icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: .7; }
+      nav .menu { display: flex; gap: 8px; align-items: center; }
+
+      /* Sections */
+      section { display: none; padding: 24px 0 48px; }
+      section.active { display: block; }
+      h1 { font-size: 28px; margin: 0 0 6px; }
+      h2 { font-size: 20px; margin: 0 0 6px; }
+
+      /* Progress bar */
+      .progress { height: 8px; border-radius: 999px; background: #1f1f23; position: relative; overflow: hidden; }
+      .progress > span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: linear-gradient(90deg, var(--accent1), var(--accent2)); }
+
+      /* Modal */
+      .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 60; }
+      .modal { width: min(520px, 92%); }
+
+      /* Footer padding */
+      .pb { padding-bottom: 24px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="container header-inner">
+        <a href="#/" class="logo">EdTech</a>
+        <form class="search" id="searchForm">
+          <span class="icon">🔎</span>
+          <input id="searchInput" type="text" placeholder="Search courses, resources..." />
+        </form>
+        <nav>
+          <div class="menu">
+            <a class="btn" href="#/courses">Courses</a>
+            <a class="btn" href="#/resources">Resources</a>
+            <a class="btn" href="#/dashboard">Dashboard & Attendance</a>
+            <a class="btn" href="#/community">Community</a>
+            <button id="authBtn" class="btn primary">Login</button>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- Home / Dashboard Summary -->
+      <section id="home" class="active">
+        <div class="pb">
+          <h1>Welcome back, <span id="username">Alex</span>! 👋</h1>
+          <div class="muted">You're making great progress. Keep up the momentum!</div>
+        </div>
+
+        <div class="grid cols-3">
+          <div class="card" style="padding:16px">
+            <div class="muted">Courses Enrolled</div>
+            <div class="title" id="stat-courses">12</div>
+            <div class="muted">+2 this month</div>
+          </div>
+          <div class="card" style="padding:16px">
+            <div class="muted">Hours Learned</div>
+            <div class="title" id="stat-hours">127</div>
+            <div class="muted">+15 this week</div>
+          </div>
+          <div class="card" style="padding:16px">
+            <div class="muted">Certificates Earned</div>
+            <div class="title" id="stat-certs">8</div>
+            <div class="muted">+1 this week</div>
+          </div>
+        </div>
+
+        <div class="space"></div>
+        <div class="row" style="align-items:center; justify-content: space-between;">
+          <h2>Continue Learning</h2>
+          <a href="#/courses" class="btn">View All Courses</a>
+        </div>
+
+        <div class="grid cols-3" id="recentCourses"></div>
+
+        <div class="space"></div>
+        <div class="grid cols-3">
+          <div class="card" style="padding:16px">
+            <h2>Upcoming Assignments</h2>
+            <div id="upcomingAssignments" class="muted" style="display:flex; flex-direction:column; gap:8px;"></div>
+          </div>
+          <div class="card" style="padding:16px">
+            <h2>Study Groups</h2>
+            <div class="muted pb">Join collaborative learning sessions</div>
+            <button id="findGroupsBtn" class="btn block">Find Study Groups</button>
+          </div>
+          <div class="card" style="padding:16px">
+            <h2>Latest Achievement</h2>
+            <div class="title">🏆 React Master</div>
+            <div class="muted">Completed 5 React courses with excellence</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Courses List -->
+      <section id="courses">
+        <div class="pb">
+          <h1>Courses</h1>
+          <div class="muted">Explore your current and recent courses.</div>
+        </div>
+        <div class="grid cols-3" id="coursesList"></div>
+      </section>
+
+      <!-- Course Detail -->
+      <section id="courseDetail">
+        <div class="pb">
+          <h1 id="courseTitle">Course</h1>
+          <div class="muted" id="courseDuration"></div>
+        </div>
+        <div class="card" style="padding:16px">
+          <h2>About this course</h2>
+          <div id="courseDescription" class="muted"></div>
+          <div class="space"></div>
+          <h2>Syllabus</h2>
+          <ul id="courseSyllabus" class="muted" style="padding-left: 18px;"></ul>
+          <div class="space"></div>
+          <h2>Instructors</h2>
+          <ul id="courseInstructors" class="muted"></ul>
+        </div>
+      </section>
+
+      <!-- Resources -->
+      <section id="resources">
+        <div class="pb">
+          <h1>Resources</h1>
+          <div class="muted">Curated learning materials and tools to accelerate your journey.</div>
+        </div>
+        <div class="grid cols-3" id="resourcesList"></div>
+      </section>
+
+      <!-- Dashboard & Attendance -->
+      <section id="dashboard">
+        <div class="pb">
+          <h1>Dashboard & Attendance</h1>
+          <div class="muted">Your overall progress and attendance overview.</div>
+        </div>
+        <div class="grid cols-3" id="dashStats"></div>
+        <div class="space"></div>
+        <div class="card" style="padding:16px">
+          <h2>Recent Attendance</h2>
+          <div class="grid cols-3" id="attendanceList"></div>
+        </div>
+      </section>
+
+      <!-- Community -->
+      <section id="community">
+        <div class="pb">
+          <h1>Community</h1>
+          <div class="muted">Connect with peers and instructors.</div>
+        </div>
+        <div class="grid cols-3" id="communityGroups"></div>
+      </section>
+    </main>
+
+    <!-- Modal: Classmates -->
+    <div class="modal-backdrop" id="modal" style="display:none;">
+      <div class="modal card">
+        <div class="row" style="align-items:center; justify-content: space-between; padding:12px 16px; border-bottom:1px solid var(--border)">
+          <div class="title">Classmates</div>
+          <button id="closeModal" class="btn">Close</button>
+        </div>
+        <div id="classmates" style="padding: 12px 16px; display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+    </div>
+
+    <!-- App JS (mock data + simple router) -->
+    <script>
+      // Mock data (kept consistent with previous backend)
+      const recentCourses = [
+        { id: 1, title: 'Advanced React Patterns', progress: 75, totalLessons: 24, completedLessons: 18, duration: '8h 30m' },
+        { id: 2, title: 'Machine Learning Fundamentals', progress: 45, totalLessons: 32, completedLessons: 14, duration: '12h 15m' },
+        { id: 3, title: 'UI/UX Design Principles', progress: 90, totalLessons: 16, completedLessons: 14, duration: '6h 45m' }
+      ];
+      const stats = [
+        { title: 'Courses Enrolled', value: 12, change: '+2 this month' },
+        { title: 'Hours Learned', value: 127, change: '+15 this week' },
+        { title: 'Certificates Earned', value: 8, change: '+1 this week' },
+      ];
+      const assignments = [
+        { id: 1, title: 'React Component Architecture', course: 'Advanced React Patterns', dueDate: '2025-01-25', status: 'pending' },
+        { id: 2, title: 'Linear Regression Analysis', course: 'Machine Learning Fundamentals', dueDate: '2025-01-28', status: 'in-progress' },
+        { id: 3, title: 'User Journey Mapping', course: 'UI/UX Design Principles', dueDate: '2025-01-30', status: 'completed' },
+      ];
+      const groups = [
+        { id: 1, name: 'Frontend Masters', members: 42, description: 'Modern frontend tools and patterns.' },
+        { id: 2, name: 'ML Study Jam', members: 27, description: 'Collaborative machine learning practice sessions.' },
+      ];
+      const classmates = ['Karthik','Lasya','Pranathi','Vijaya','Vihari','x','xx','xxx'];
+      const resources = [
+        { id: 1, title: 'React Docs', desc: 'Official React documentation', url: 'https://react.dev' },
+        { id: 2, title: 'TypeScript Handbook', desc: 'Learn TypeScript deeply', url: 'https://www.typescriptlang.org/docs/' },
+        { id: 3, title: 'MDN Web Docs', desc: 'Web platform documentation', url: 'https://developer.mozilla.org/' },
+      ];
+
+      // Elements
+      const E = (sel) => document.querySelector(sel);
+      const EC = (sel) => document.querySelectorAll(sel);
+
+      function showSection(id) {
+        EC('main section').forEach(s => s.classList.remove('active'));
+        const el = E('#' + id);
+        if (el) el.classList.add('active');
+      }
+
+      // Render helpers
+      function renderProgress(value) {
+        return `<div class="progress"><span style="width:${value}%"></span></div>`;
+      }
+
+      function renderRecentCourses() {
+        const wrap = E('#recentCourses');
+        wrap.innerHTML = recentCourses.map(c => `
+          <div class="card" style="padding:16px">
+            <div class="title">${c.title}</div>
+            <div class="muted">Duration: ${c.duration}</div>
+            <div class="space"></div>
+            <div class="muted" style="display:flex; justify-content:space-between">
+              <span>Progress</span><span>${c.progress}% complete</span>
+            </div>
+            ${renderProgress(c.progress)}
+            <div class="space"></div>
+            <a href="#/courses/${c.id}" class="btn primary">Continue</a>
+          </div>`
+        ).join('');
+      }
+
+      function renderAssignments() {
+        const wrap = E('#upcomingAssignments');
+        wrap.innerHTML = assignments.map(a => `
+          <div class="card" style="padding:12px">
+            <div class="title" style="font-size:14px;">${a.title}</div>
+            <div class="muted" style="font-size:12px;">${a.course}</div>
+            <div class="muted" style="font-size:12px;">Due ${a.dueDate} • ${a.status}</div>
+          </div>`
+        ).join('');
+      }
+
+      function renderCoursesList(q = '') {
+        const wrap = E('#coursesList');
+        const list = q ? recentCourses.filter(c => c.title.toLowerCase().includes(q.toLowerCase())) : recentCourses;
+        wrap.innerHTML = list.map(c => `
+          <div class="card" style="padding:16px">
+            <div class="title">${c.title}</div>
+            <div class="muted">Duration: ${c.duration}</div>
+            <div class="space"></div>
+            <div class="muted" style="display:flex; justify-content:space-between">
+              <span>Progress</span><span>${c.progress}%</span>
+            </div>
+            ${renderProgress(c.progress)}
+            <div class="space"></div>
+            <a href="#/courses/${c.id}" class="btn primary">Continue</a>
+          </div>`
+        ).join('');
+      }
+
+      function renderCourseDetail(id) {
+        const course = recentCourses.find(c => c.id === Number(id));
+        if (!course) {
+          E('#courseTitle').textContent = 'Course not found';
+          E('#courseDuration').textContent = '';
+          E('#courseDescription').textContent = '';
+          E('#courseSyllabus').innerHTML = '';
+          E('#courseInstructors').innerHTML = '';
+          return;
+        }
+        E('#courseTitle').textContent = course.title;
+        E('#courseDuration').textContent = 'Duration: ' + course.duration;
+        // Mock details
+        const description = `Deep dive into ${course.title} with hands-on lessons and projects.`;
+        const syllabus = ['Introduction and setup','Core concepts','Applied patterns and best practices','Capstone project'];
+        const instructors = ['Dr. Smith','Alex Johnson'];
+        E('#courseDescription').textContent = description;
+        E('#courseSyllabus').innerHTML = syllabus.map(s => `<li>${s}</li>`).join('');
+        E('#courseInstructors').innerHTML = instructors.map(n => `<li>• ${n}</li>`).join('');
+      }
+
+      function renderResources() {
+        E('#resourcesList').innerHTML = resources.map(r => `
+          <div class="card" style="padding:16px">
+            <div class="title">${r.title}</div>
+            <div class="muted">${r.desc}</div>
+            <div class="space"></div>
+            <a class="btn" target="_blank" rel="noreferrer" href="${r.url}">Visit</a>
+          </div>`
+        ).join('');
+      }
+
+      function renderDashboard() {
+        // Stats
+        E('#dashStats').innerHTML = stats.map(s => `
+          <div class="card" style="padding:16px">
+            <div class="muted">${s.title}</div>
+            <div class="title">${s.value}</div>
+            <div class="muted">${s.change}</div>
+          </div>`
+        ).join('');
+        // Attendance mock
+        const attendance = [
+          { date: '2025-09-10', status: 'Present' },
+          { date: '2025-09-11', status: 'Present' },
+          { date: '2025-09-12', status: 'Absent' },
+          { date: '2025-09-13', status: 'Present' },
+          { date: '2025-09-14', status: 'Present' },
+          { date: '2025-09-15', status: 'Present' },
+        ];
+        E('#attendanceList').innerHTML = attendance.map(a => `
+          <div class="card" style="padding:12px">
+            <div class="muted">${a.date}</div>
+            <div style="color:${a.status==='Present' ? '#16a34a' : '#dc2626'}">${a.status}</div>
+          </div>`
+        ).join('');
+      }
+
+      function renderCommunity() {
+        E('#communityGroups').innerHTML = groups.map(g => `
+          <div class="card" style="padding:16px">
+            <div class="title">${g.name}</div>
+            <div class="muted">${g.description}</div>
+            <div class="space"></div>
+            <div class="muted">${g.members} members</div>
+            <div class="space"></div>
+            <button class="btn">Join</button>
+          </div>`
+        ).join('');
+      }
+
+      // Simple hash router: #/, #/courses, #/courses/:id, #/resources, #/dashboard, #/community
+      function parseHash() {
+        const h = location.hash || '#/';
+        const [_, base, id] = h.split('/'); // "#", base, id...
+        return { base, id, raw: h };
+      }
+
+      function route() {
+        const { base, id, raw } = parseHash();
+        const url = new URL(location.href);
+        const q = url.hash.includes('?') ? new URLSearchParams(url.hash.split('?')[1]).get('q') : '';
+
+        if (!base || base === '') { // home
+          showSection('home');
+          renderRecentCourses();
+          renderAssignments();
+          return;
+        }
+        if (base === 'courses' && id) {
+          showSection('courseDetail');
+          renderCourseDetail(id);
+          return;
+        }
+        if (base === 'courses') {
+          showSection('courses');
+          renderCoursesList(q || '');
+          return;
+        }
+        if (base === 'resources') {
+          showSection('resources');
+          renderResources();
+          return;
+        }
+        if (base === 'dashboard') {
+          showSection('dashboard');
+          renderDashboard();
+          return;
+        }
+        if (base === 'community') {
+          showSection('community');
+          renderCommunity();
+          return;
+        }
+        // fallback
+        showSection('home');
+      }
+
+      // Auth button toggles between Login and Profile initial
+      const authBtn = E('#authBtn');
+      let user = null;
+      function updateAuthUI() {
+        authBtn.textContent = user ? (user.name ? user.name[0].toUpperCase() : 'U') : 'Login';
+        authBtn.classList.toggle('primary', !user);
+      }
+      authBtn.addEventListener('click', () => {
+        if (!user) {
+          // quick mock login
+          user = { name: 'Alex', email: 'alex@example.com' };
+        } else {
+          // logout
+          user = null;
+        }
+        updateAuthUI();
+      });
+
+      // Search submit navigates to courses with ?q=
+      E('#searchForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const q = E('#searchInput').value.trim();
+        location.hash = q ? `#/courses?q=${encodeURIComponent(q)}` : '#/courses';
+      });
+
+      // Study groups modal
+      const modal = E('#modal');
+      E('#findGroupsBtn').addEventListener('click', () => {
+        E('#classmates').innerHTML = classmates.map(n => `<div class="card" style="padding:10px">${n}</div>`).join('');
+        modal.style.display = 'flex';
+      });
+      E('#closeModal').addEventListener('click', () => { modal.style.display = 'none'; });
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+
+      // Initial render
+      window.addEventListener('hashchange', route);
+      updateAuthUI();
+      route();
+    </script>
+  </body>
+</html>
